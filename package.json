@@ -1,0 +1,41 @@
+{
+  "name": "coffeenode-timer",
+  "version": "0.0.1",
+  "description": "A timer for NodeJS",
+  "main": "lib/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/loveencounterflow/coffeenode-timer.git"
+  },
+  "dependencies": {
+    "coffee-script": "~1.6.3",
+    "coffeenode-types": "~0.1.0",
+    "coffeenode-text": "~0.1.1",
+    "coffeenode-trm": "~0.1.6"
+  },
+  "keywords": [
+    "coffeescript",
+    "timer",
+    "performance"
+  ],
+  "author": "",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/loveencounterflow/coffeenode-timer/issues"
+  },
+  "larq": {
+    "extensions": {},
+    "compile-statements": {},
+    "%cache": {
+      "routes": {
+        "lib/main.js": 1,
+        "lib/tests.js": 1
+      }
+    }
+  },
+  "readme": "ERROR: No README data found!",
+  "_id": "coffeenode-timer@0.0.1"
+}
