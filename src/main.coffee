@@ -17,12 +17,7 @@ BIGNUMBER                 = require 'coffeenode-bignumber'
 @timer_by_name          = {}
 @pending_timer_count      = 0
 @_hrtime_resolution       = 1e9
-# @_hrtime_resolution       = 60
 
-#===========================================================================================================
-# INSTRUMENTALIZATION
-#-----------------------------------------------------------------------------------------------------------
-### nothing here yet ###
 
 #===========================================================================================================
 # TIMING CORE
@@ -35,9 +30,9 @@ BIGNUMBER                 = require 'coffeenode-bignumber'
 #===========================================================================================================
 # TIMER CREATION
 #-----------------------------------------------------------------------------------------------------------
-@new_timer = ( name ) ->
+@new = ( name ) ->
   name ?= @_name_from_caller_location 2 unless name?
-  bye "timer named #{rpr name} already in use" if @timer_by_name[ name ]?
+  throw new Error "timer named #{rpr name} already in use" if @timer_by_name[ name ]?
   R =
     '~isa':         'TIMER/timer'
     'name':         name
@@ -53,7 +48,7 @@ BIGNUMBER                 = require 'coffeenode-bignumber'
 
 #-----------------------------------------------------------------------------------------------------------
 @_fetch_timer = ( name ) ->
-  return @timer_by_name[ name ] ? @new_timer name
+  return @timer_by_name[ name ] ? @new name
 
 #-----------------------------------------------------------------------------------------------------------
 @_timer_from_arguments = ( x ) ->
@@ -185,13 +180,20 @@ BIGNUMBER                 = require 'coffeenode-bignumber'
 # RESULTS REPORTING
 #-----------------------------------------------------------------------------------------------------------
 @log_report = ->
-  log()
+  log @report()
+  return null
+
+#-----------------------------------------------------------------------------------------------------------
+@report = ->
+  R   = []
+  pen = ( P... ) -> R.push TRM.pen P...
+  pen()
   #.........................................................................................................
   for name, timer of @timer_by_name
     @_set_delta_times timer
     delta_times = timer[ 'delta-times' ]
     if delta_times.length is 0
-      log TRM.grey "no finished runs in #{rpr name}"
+      pen TRM.grey "no finished runs in #{rpr name}"
       continue
   #.........................................................................................................
   for name, timer of @timer_by_name
@@ -205,35 +207,31 @@ BIGNUMBER                 = require 'coffeenode-bignumber'
     dt_max          = @_get_max_time timer, delta_times
     dt_min          = @_get_min_time timer, delta_times
     dt_max_n        = BIGNUMBER.as_number dt_max
-    log BIGNUMBER.rpr dt_max
-    log BIGNUMBER.rpr dt_min
     #.......................................................................................................
-    log()
-    log TRM.gold name
+    pen()
+    pen TRM.gold name
     #.......................................................................................................
     for dt, idx in delta_times
       if dt?
-        # log '©5t2', ( @_format_time dt ), ( @_format_time dt_min ), ( @_format_time dt_max )
         dt_n    = BIGNUMBER.as_number dt
         is_max  = BIGNUMBER.equals dt, dt_max
         is_min  = BIGNUMBER.equals dt, dt_min
         color = if is_max then 'RED' else ( if is_min then 'GREEN' else 'orange' )
-        # log '©5t2', dt_max_n, dt_n
         bar   = TRM[ color ]  @_bar_from_number timer, 200, dt_max_n, dt_n
         time  = TRM.orange    @_format_time     timer, dt, number_length
       else
         bar   = '🚫'
         time  = TRM.grey './.         '
       prefix = TRM.grey "run #{TEXT.flush_right ( '#' + ( idx ) ), 6}: "
-      log prefix, time, bar
+      pen prefix, time, bar
     #.......................................................................................................
     average_time_n  = BIGNUMBER.as_number average_time
     bar             = TRM.steel @_bar_from_number timer, 200, dt_max_n, average_time_n
-    log ( TRM.grey 'average:    ' ), ( TRM.orange @_format_time timer, average_time, number_length ), bar
-    log ( TRM.grey 'total:      ' ),   TRM.orange total_time_txt
+    pen ( TRM.grey 'average:    ' ), ( TRM.orange @_format_time timer, average_time, number_length ), bar
+    pen ( TRM.grey 'total:      ' ),   TRM.orange total_time_txt
   #.........................................................................................................
-  log()
-  return null
+  pen()
+  return R.join ''
 
 #-----------------------------------------------------------------------------------------------------------
 #                0         1         2         3         4         5         6         7
@@ -291,11 +289,42 @@ add_separators = ( number, width = null ) ->
   @_complain_about_pending_timers()
   @log_report()
 
+
+#===========================================================================================================
+# INSTRUMENTALIZATION
+#-----------------------------------------------------------------------------------------------------------
+@sync_instrumentalize = ( name, method ) ->
+  timer = @new name
+  TIMER = @
+  #.........................................................................................................
+  timed_method = ( P... ) ->
+    TIMER.start timer
+    idx = timer[ 'mru-idx' ]
+    R = method P...
+    TIMER.stop timer, idx
+    return R
+  #.........................................................................................................
+  return timed_method
+
+#-----------------------------------------------------------------------------------------------------------
+@async_instrumentalize = ( name, method ) ->
+  timer = @new name
+  TIMER = @
+  #.........................................................................................................
+  timed_method = ( P..., handler ) ->
+    TIMER.start timer
+    idx = timer[ 'mru-idx' ]
+    do ( idx ) ->
+      method P..., ( P... ) ->
+        TIMER.stop timer, idx
+        handler P...
+  #.........................................................................................................
+  return timed_method
+
+
+#===========================================================================================================
+# AUTOMEATED REPORTING
 #-----------------------------------------------------------------------------------------------------------
 process.on 'exit', @finalize.bind @
-
-
-
-
 
 
